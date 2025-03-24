@@ -1,0 +1,46 @@
+name: CI for Django with Docker
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: statuspage
+          POSTGRES_PASSWORD: 1212
+          POSTGRES_DB: statuspage
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Docker Compose
+      run: |
+        docker-compose -f docker-compose.yml up -d
+
+    - name: Wait for services to be ready
+      run: sleep 20
+
+    - name: Run placeholder test
+      run: echo "✅ Everything ran successfully!"
+
