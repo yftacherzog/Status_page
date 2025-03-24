@@ -14,9 +14,9 @@ jobs:
       postgres:
         image: postgres:13
         env:
-          POSTGRES_USER: statuspage
-          POSTGRES_PASSWORD: 1212
-          POSTGRES_DB: statuspage
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
         ports:
           - 5432:5432
         options: >-
@@ -34,7 +34,12 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Set up Docker Compose
+    - name: Run Docker Compose
+      env:
+        POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+        POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+        POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
       run: |
         docker-compose -f docker-compose.yml up -d
 
@@ -43,4 +48,3 @@ jobs:
 
     - name: Run placeholder test
       run: echo "✅ Everything ran successfully!"
-
