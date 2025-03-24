@@ -1,10 +1,9 @@
-# .github/workflows/deploy.yml
-
-name: 🚀 Deploy to AWS EC2 via Bastion with Dynamic IPs
+---
+name: "🚀 Deploy to AWS EC2 via Bastion with Dynamic IPs"
 
 on:
   push:
-    branches: [main]
+    branches: ["main"]
   workflow_dispatch: {}
 
 jobs:
@@ -12,41 +11,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Setup SSH key
-      run: |
-        mkdir -p ~/.ssh
-        echo "$SSH_STATUSPAGE_NOAKIREL" > ~/.ssh/deploy_key
-        chmod 600 ~/.ssh/deploy_key
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.SSH_STATUSPAGE_NOAKIREL }}
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_STATUSPAGE_NOAKIREL" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+        env:
+          SSH_STATUSPAGE_NOAKIREL: ${{ secrets.SSH_STATUSPAGE_NOAKIREL }}
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
-    - name: Get private IPs of EC2 instances tagged for deployment
-      id: get_ips
-      run: |
-        IPS=$(aws ec2 describe-instances \
-          --filters "Name=tag:Name,Values=statuspage-prod" "Name=tag:owner,Values=meitaveini" \
-          --query "Reservations[*].Instances[*].PrivateIpAddress" \
-          --output text)
-        echo "Fetched IPs: $IPS"
-        echo "ips=$IPS" >> $GITHUB_OUTPUT
+      - name: Get private IPs of EC2 instances tagged for deployment
+        id: get_ips
+        run: |
+          IPS=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=statuspage-prod" "Name=tag:owner,Values=meitaveini" \
+            --query "Reservations[*].Instances[*].PrivateIpAddress" \
+            --output text)
+          echo "Fetched IPs: $IPS"
+          echo "ips=$IPS" >> $GITHUB_OUTPUT
 
-    - name: Deploy to all tagged EC2 instances
-      run: |
-        for ip in ${{ steps.get_ips.outputs.ips }}; do
-          echo "Deploying to $ip"
-          ssh -o StrictHostKeyChecking=no \
-              -i ~/.ssh/deploy_key \
-              -o ProxyJump=${{ secrets.BASTION_USER }}@${{ secrets.BASTION_IP }} \
-              ${{ secrets.SERVER_USER }}@$ip \
-              'cd /opt/status-page && git pull origin main && docker compose -f docker-compose.prod.yml up -d --build'
-        done
+      - name: Deploy to all tagged EC2 instances
+        run: |
+          for ip in ${{ steps.get_ips.outputs.ips }}; do
+            echo "Deploying to $ip"
+            ssh -o StrictHostKeyChecking=no \
+                -i ~/.ssh/deploy_key \
+                -o ProxyJump=${{ secrets.BASTION_USER }}@${{ secrets.BASTION_IP }} \
+                ${{ secrets.SERVER_USER }}@$ip \
+                'cd /opt/status-page && git pull origin main && docker compose -f docker-compose.yml up -d --build'
+          done
