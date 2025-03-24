@@ -4,7 +4,8 @@ name: "🚀 Deploy to AWS EC2 via Bastion with Dynamic IPs"
 on:
   push:
     branches: ["main"]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs: {}
 
 jobs:
   deploy:
@@ -44,8 +45,8 @@ jobs:
           for ip in ${{ steps.get_ips.outputs.ips }}; do
             echo "Deploying to $ip"
             ssh -o StrictHostKeyChecking=no \
-                -i ~/.ssh/deploy_key \
-                -o ProxyJump=${{ secrets.BASTION_USER }}@${{ secrets.BASTION_IP }} \
-                ${{ secrets.SERVER_USER }}@$ip \
-                'cd /opt/status-page && git pull origin main && docker compose -f docker-compose.yml up -d --build'
+              -i ~/.ssh/deploy_key \
+              -o ProxyJump=${{ secrets.BASTION_USER }}@${{ secrets.BASTION_IP }} \
+              ${{ secrets.SERVER_USER }}@$ip \
+              'cd /opt/status-page && git pull origin main && docker compose -f docker-compose.yml up -d --build'
           done
