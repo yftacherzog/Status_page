@@ -5,6 +5,8 @@ services:
     image: postgres:14
     container_name: postgres-db
     restart: always
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_USER: statuspage
       POSTGRES_PASSWORD: securepassword
@@ -26,11 +28,12 @@ services:
   app:
     build: .
     container_name: statuspage-app
+    restart: always
     depends_on:
       - db
       - redis
     environment:
-      - DATABASE_URL=postgresql://statuspage:securepassword@db/statuspage
+      - DATABASE_URL=postgresql://statuspage:securepassword@db:5432/statuspage
       - REDIS_URL=redis://redis:6379/0
     ports:
       - "8000:8000"
@@ -56,4 +59,3 @@ volumes:
 
 networks:
   my_network:
-

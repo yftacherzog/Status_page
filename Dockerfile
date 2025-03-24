@@ -1,29 +1,27 @@
-# Copy base configuration file
-RUN cp statuspage/statuspage/configuration_example.py statuspage/statuspage/configuration.py
+# 1️⃣ Use Ubuntu as base image
+FROM ubuntu:22.04
 
-# Update ALLOWED_HOSTS to allow all hosts
-RUN sed -i "s/ALLOWED_HOSTS = .*/ALLOWED_HOSTS = ['*']/" statuspage/statuspage/configuration.py
+# 2️⃣ Set working directory inside the container
+WORKDIR /app
 
-# Generate SECRET_KEY (this line is correctly placed!)
-RUN . venv/bin/activate && python3 statuspage/generate_secret_key.py
+# 3️⃣ Install system dependencies
+RUN apt update && apt install -y \
+    python3-pip python3-venv python3-dev build-essential \
+    libpq-dev libssl-dev libffi-dev python3-setuptools && \
+    rm -rf /var/lib/apt/lists/*
 
-# Change REDIS host from 'localhost' to 'redis'
-RUN sed -i "/REDIS/,/}/s/'localhost'/'redis'/" statuspage/statuspage/configuration.py
+# 4️⃣ Copy application files
+COPY . /app
 
-# Update DB host from 'localhost' to 'db'
-RUN sed -i "/DATABASES/,/}/s/'HOST': 'localhost'/'HOST': 'db'/" statuspage/statuspage/configuration.py
+# 5️⃣ Install Python dependencies
+RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Run setup script (optional - commented out)
-#RUN chmod +x upgrade.sh && ./upgrade.sh
+# 6️⃣ Copy entrypoint script and give execution permission
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# Open the application port
+# 7️⃣ Expose port 8000 for the app
 EXPOSE 8000
 
-# Activate virtual environment
-SHELL ["/bin/bash", "-c"]
-RUN source /opt/status-page/venv/bin/activate && \
-
-# Run database migrations
-python3 statuspage/manage.py migrate --noinput
-
-CMD ["bash", "-c", "./upgrade.sh && python3 statuspage/manage.py runserver 0.0.0.0:8000 --insecure"]
+# 8️⃣ Use entrypoint script to handle setup and run Gunicorn
+ENTRYPOINT ["/entrypoint.sh"]
