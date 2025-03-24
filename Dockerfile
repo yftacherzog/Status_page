@@ -1,27 +1,36 @@
-# 1️⃣ Use Ubuntu as base image
-FROM ubuntu:22.04
+FROM python:3.10
 
-# 2️⃣ Set working directory inside the container
-WORKDIR /app
+WORKDIR /opt/status-page
 
-# 3️⃣ Install system dependencies
-RUN apt update && apt install -y \
-    python3-pip python3-venv python3-dev build-essential \
-    libpq-dev libssl-dev libffi-dev python3-setuptools && \
-    rm -rf /var/lib/apt/lists/*
+# Copy application files
+COPY requirements.txt .
 
-# 4️⃣ Copy application files
-COPY . /app
+# Install dependencies directly without using a virtual environment
+RUN pip install -r requirements.txt
+COPY . .
 
-# 5️⃣ Install Python dependencies
-RUN pip3 install --no-cache-dir -r requirements.txt
+# Copy base configuration file
+RUN cp statuspage/statuspage/configuration_example.py statuspage/statuspage/configuration.py
 
-# 6️⃣ Copy entrypoint script and give execution permission
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# Update ALLOWED_HOSTS to allow all hosts
+RUN sed -i "s/ALLOWED_HOSTS = .*/ALLOWED_HOSTS = ['*']/" statuspage/statuspage/configuration.py
+RUN sed -i "/DATABASE/,/}/s/'HOST': 'localhost'/'HOST': 'db'/" statuspage/statuspage/configuration.py
+RUN sed -i "/DATABASE/,/}/s/'PASSWORD': ''/'PASSWORD': 'securepassword'/" statuspage/statuspage/configuration.py
+RUN sed -i "/DATABASE/,/}/s/'USER': ''/'USER': 'statuspage'/" statuspage/statuspage/configuration.py
 
-# 7️⃣ Expose port 8000 for the app
+# Update Redis configuration
+RUN sed -i "/REDIS/,/}/s/'HOST': 'localhost'/'HOST': 'redis'/" statuspage/statuspage/configuration.py
+
+# Generate SECRET_KEY
+RUN python3 statuspage/generate_secret_key.py
+
+# Open the application port
 EXPOSE 8000
 
-# 8️⃣ Use entrypoint script to handle setup and run Gunicorn
-ENTRYPOINT ["/entrypoint.sh"]
+# Make scripts executable
+RUN chmod +x upgrade.sh
+RUN chmod +x entrypoint.sh
+
+# Use the entrypoint script
+ENTRYPOINT ["./entrypoint.sh"]
+CMD ["python3", "statuspage/manage.py", "runserver", "0.0.0.0:8000", "--insecure"]
