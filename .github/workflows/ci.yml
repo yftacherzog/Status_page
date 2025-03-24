@@ -28,5 +28,5 @@ jobs:
 
     - name: Run Django tests
       run: |
-        docker compose exec app python manage.py test
+        docker compose exec app python statuspage/manage.py test
 
