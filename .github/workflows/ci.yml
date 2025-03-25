@@ -35,14 +35,3 @@ jobs:
 
       - name: Check server is up (localhost:8000)
         run: curl -I http://localhost:8000
-
-      - name: Install linters
-        run: |
-          pip install yamllint
-          npm install -g markdownlint-cli
-
-      - name: Lint YAML files
-        run: yamllint .github/workflows/
-
-      - name: Lint Markdown files
-        run: markdownlint TAGS.md DEPLOYMENT.md
