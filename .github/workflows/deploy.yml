@@ -4,7 +4,12 @@ name: "🚀 Deploy to AWS EC2 via Bastion with Dynamic IPs"
 on:
   push:
     branches: ["main"]
-  workflow_dispatch: true
+  workflow_dispatch:
+    inputs:
+      run:  
+        description: "Trigger manually"
+        required: false
+        default: false
 
 jobs:
   deploy:
