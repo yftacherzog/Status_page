@@ -5,7 +5,11 @@ on:
   push:
     branches: ["main"]
   workflow_dispatch:
-    inputs: {}
+    inputs:
+      dummy:
+        description: "Trigger manually"
+        required: false
+        default: "true"
 
 jobs:
   deploy:
@@ -34,7 +38,8 @@ jobs:
         id: get_ips
         run: |
           IPS=$(aws ec2 describe-instances \
-            --filters "Name=tag:Name,Values=statuspage-prod" "Name=tag:owner,Values=meitaveini" \
+            --filters "Name=tag:Name,Values=statuspage-prod" \
+                     "Name=tag:owner,Values=meitaveini" \
             --query "Reservations[*].Instances[*].PrivateIpAddress" \
             --output text)
           echo "Fetched IPs: $IPS"
@@ -48,5 +53,7 @@ jobs:
               -i ~/.ssh/deploy_key \
               -o ProxyJump=${{ secrets.BASTION_USER }}@${{ secrets.BASTION_IP }} \
               ${{ secrets.SERVER_USER }}@$ip \
-              'cd /opt/status-page && git pull origin main && docker compose -f docker-compose.yml up -d --build'
+              'cd /opt/status-page && \
+               git pull origin main && \
+               docker compose -f docker-compose.yml up -d --build'
           done
