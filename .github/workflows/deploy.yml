@@ -6,10 +6,10 @@ on:
     branches: ["main"]
   workflow_dispatch:
     inputs:
-      run:  
+      run:
         description: "Trigger manually"
         required: false
-        default: false
+        default: "false"
 
 jobs:
   deploy:
@@ -54,6 +54,10 @@ jobs:
               -o ProxyJump=${{ secrets.BASTION_USER }}@${{ secrets.BASTION_IP }} \
               ${{ secrets.SERVER_USER }}@$ip \
               'cd /opt/status-page && \
-               git pull origin main && \
+               if [ ! -d .git ]; then \
+                 git clone git@github.com:meitavEini/Status_page_FORKED_REPO.git .; \
+               else \
+                 git pull origin main; \
+               fi && \
                docker compose -f docker-compose.yml up -d --build'
           done

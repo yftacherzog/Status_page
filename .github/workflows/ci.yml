@@ -1,48 +1,63 @@
 ---
-name: CI for Django with Docker
+name: "🚀 Deploy to AWS EC2 via Bastion with Dynamic IPs"
 
 on:
   push:
     branches: ["main"]
-  pull_request:
-    branches: ["main"]
+  workflow_dispatch:
+    inputs:
+      run:
+        description: "Trigger manually"
+        required: false
+        default: "false"
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Run Docker Compose
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_STATUSPAGE_NOAKIREL" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
         env:
-          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
-          POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+          SSH_STATUSPAGE_NOAKIREL: ${{ secrets.SSH_STATUSPAGE_NOAKIREL }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Get private IPs of EC2 instances tagged for deployment
+        id: get_ips
         run: |
-          docker compose -f docker-compose.yml up -d
+          IPS=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=statuspage-prod" \
+                     "Name=tag:owner,Values=meitaveini" \
+            --query "Reservations[*].Instances[*].PrivateIpAddress" \
+            --output text)
+          echo "Fetched IPs: $IPS"
+          echo "ips=$IPS" >> $GITHUB_OUTPUT
 
-      - name: Wait for services to be ready
-        run: sleep 20
-
-      - name: Run Django tests
-        run: docker compose exec app python statuspage/manage.py test
-
-      - name: Wait for server to start
-        run: sleep 10
-
-      - name: Check server is up (localhost:8000)
-        run: curl -I http://localhost:8000
-
-      - name: Install linters
+      - name: Deploy to all tagged EC2 instances
         run: |
-          pip install yamllint
-          npm install -g markdownlint-cli
-
-      - name: Lint YAML files
-        run: yamllint .github/workflows/
-
-      - name: Lint Markdown files
-        run: markdownlint TAGS.md DEPLOYMENT.md
+          for ip in ${{ steps.get_ips.outputs.ips }}; do
+            echo "Deploying to $ip"
+            ssh -o StrictHostKeyChecking=no \
+              -i ~/.ssh/deploy_key \
+              -o ProxyJump=${{ secrets.BASTION_USER }}@${{ secrets.BASTION_IP }} \
+              ${{ secrets.SERVER_USER }}@$ip \
+              'cd /opt/status-page && \
+               if [ ! -d .git ]; then \
+                 git clone git@github.com:meitavEini/Status_page_FORKED_REPO.git .; \
+               else \
+                 git pull origin main; \
+               fi && \
+               docker compose -f docker-compose.yml up -d --build'
+          done
